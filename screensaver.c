@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     
     //comprueba si se renderizo
     if (renderer == NULL) {
-        printf("Error creating renderer: %s\n", SDL_GetError());
+        printf("Error al renderizar: %s\n", SDL_GetError());
         return 1;
     }
 
