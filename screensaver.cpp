@@ -10,8 +10,8 @@ float circle_vy = 0.5;
 float circle_radius = 25;
 
 // tamaño de pantalla
-int width = 640;
-int height = 480;
+int width = 960;
+int height = 540;
 
 
 int main(int argc, char *argv[]) {
