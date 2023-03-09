@@ -1,18 +1,43 @@
-#include <SDL.h>
-#include <SDL2_gfxPrimitives.h>
-#include <stdbool.h>
+
+#include "SDL.h"
+#include "SDL2_gfxPrimitives.h"
+#include "stdbool.h"
+#include "iostream"
 
 // variables globales
 float circle_x = 320;
 float circle_y = 240;
-float circle_vx = 0.5;
-float circle_vy = 0.5;
+float circle_vx = 1;
+float circle_vy = 1;
 float circle_radius = 25;
 
 // tamaño de pantalla
-int width = 960;
-int height = 540;
+int SCREEN_WIDTH = 1280;
+int SCREEN_HEIGHT = 720;
 
+int NUM_STARS = 25;
+int V_STARS = 1;
+
+int NUM_PLAYERS = 5;
+int V_PLAYERS = 2;
+
+// Estructuras para los objetos
+struct Star {
+    float x;  // pos x
+    float y;  // pos y 
+    float vx; // vel x
+    float vy; // vel y
+    float r;  // radius 
+    float alpha; // color alpha de la estrella
+};
+
+struct Player {
+    float x;  // pos x
+    float y;  // pos y 
+    float vx; // vel x
+    float vy; // vel y
+    float r;  // radius 
+};
 
 int main(int argc, char *argv[]) {
 
@@ -26,8 +51,8 @@ int main(int argc, char *argv[]) {
     SDL_Window* window = SDL_CreateWindow("Screensaver", 
                                           SDL_WINDOWPOS_UNDEFINED, 
                                           SDL_WINDOWPOS_UNDEFINED, 
-                                          width, 
-                                          height, 
+                                          SCREEN_WIDTH, 
+                                          SCREEN_HEIGHT, 
                                           SDL_WINDOW_SHOWN);
     if (window == NULL) {
         printf("Error al crear ventana: %s\n", SDL_GetError());
@@ -44,16 +69,40 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // int x = 320;
-    // int y = 240;
-    // int radio = 50;
+    srand(time(NULL)); //inicializa la semilla aleatoria
 
-    // dibuja circulo
-    for (int i = 0; i < 360; i++) {
-        float rad = i * (M_PI / 180);
-        SDL_RenderDrawPoint(renderer, 
-                            circle_x + cos(rad) * circle_radius, 
-                            circle_y + sin(rad) * circle_radius);
+    // se inician las estrellas
+    Star obj_stars[NUM_STARS];
+    for (int i = 0; i < NUM_STARS; i++) {
+        
+        obj_stars[i].x = rand() % SCREEN_WIDTH;
+        obj_stars[i].y = rand() % SCREEN_HEIGHT;
+        obj_stars[i].vx = V_STARS;
+        obj_stars[i].vy = 0;
+        obj_stars[i].r = rand() % 5 + 1;
+        obj_stars[i].alpha = rand() % 100 + 155;
+    }
+
+    // se inicia el equipo A
+    Player teamA[NUM_PLAYERS];
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        
+        teamA[i].x = rand() % SCREEN_WIDTH;
+        teamA[i].y = rand() % SCREEN_HEIGHT;
+        teamA[i].vx = rand() % 2 == 0 ? V_PLAYERS : V_PLAYERS - 1;
+        teamA[i].vy = rand() % 2 == 0 ? V_PLAYERS : V_PLAYERS - 1;
+        teamA[i].r = rand() % 10 + 20;
+    }
+
+    // se inicia el equipo B
+    Player teamB[NUM_PLAYERS];
+    for (int i = 0; i < NUM_PLAYERS; i++) {
+        
+        teamB[i].x = rand() % SCREEN_WIDTH;
+        teamB[i].y = rand() % SCREEN_HEIGHT;
+        teamB[i].vx = V_PLAYERS;
+        teamB[i].vy = V_PLAYERS;
+        teamB[i].r = rand() % 10 + 20;
     }
 
     // ciclo para hacer que el ciculo se mueva
@@ -72,29 +121,85 @@ int main(int argc, char *argv[]) {
             }
         }
         
-        // se actualiza la posición
-        circle_x += circle_vx;
-        circle_y += circle_vy;
+        
+        // se mueven las estrellas del fondo
+        for (int i = 0; i < NUM_STARS; i++) {
+            obj_stars[i].x += obj_stars[i].vx;
+            obj_stars[i].y += obj_stars[i].vy;
 
-        // Cuando el ciculo toca un borde invierte la dirección de la velocidad
-        if (circle_x < circle_radius || circle_x > width - circle_radius) {
-            circle_vx = -circle_vx;
-        }
-        if (circle_y < circle_radius || circle_y > height - circle_radius) {
-            circle_vy = -circle_vy;
+            // Cuando el ciculo toca un borde se desaparece y aparece una nueva estrella
+            if (obj_stars[i].x > SCREEN_WIDTH - obj_stars[i].r) {
+                obj_stars[i].x = 0;
+                obj_stars[i].y = rand() % SCREEN_HEIGHT;
+                obj_stars[i].vx = V_STARS;
+                obj_stars[i].vy = 0;
+                obj_stars[i].r = rand() % 5 + 1;
+            }
         }
 
+
+        // se mueven los players del equipo A
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            teamA[i].x += teamA[i].vx;
+            teamA[i].y += teamA[i].vy;
+
+            // Cuando el ciculo toca un borde invierte la dirección de la velocidad
+            if (teamA[i].x < teamA[i].r || teamA[i].x > SCREEN_WIDTH - teamA[i].r) {
+                teamA[i].vx = -teamA[i].vx;
+            }
+            if (teamA[i].y < teamA[i].r || teamA[i].y > SCREEN_HEIGHT - teamA[i].r) {
+                teamA[i].vy = -teamA[i].vy;
+            }
+        }
+
+        // se mueven los players del equipo B
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            teamB[i].x += teamB[i].vx;
+            teamB[i].y += teamB[i].vy;
+
+            // Cuando el ciculo toca un borde invierte la dirección de la velocidad
+            if (teamB[i].x < teamB[i].r || teamB[i].x > SCREEN_WIDTH - teamB[i].r) {
+                teamB[i].vx = -teamB[i].vx;
+            }
+            if (teamB[i].y < teamB[i].r || teamB[i].y > SCREEN_HEIGHT - teamB[i].r) {
+                teamB[i].vy = -teamB[i].vy;
+            }
+        }
+        
+
+        // se mueve un circulo
         SDL_SetRenderDrawColor(renderer, // render
-                               215, 219, 221,  // r,g,b
-                               255); // alpha
+                            18, 24, 46,  // r,g,b
+                            255); // alpha
         SDL_RenderClear(renderer);
-        filledCircleRGBA(renderer, //render 
-                         circle_x, circle_y, circle_radius, // circulo
-                         82, 190, 128, // r,g,b
-                         255); //alpha
 
+
+        for (int i = 0; i < NUM_STARS; i++) {
+            filledCircleRGBA(renderer, //render 
+                        obj_stars[i].x, obj_stars[i].y, obj_stars[i].r, // circulo
+                        253, 253, 0, // r,g,b
+                        obj_stars[i].alpha); //alpha
+        }
+
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            filledCircleRGBA(renderer, //render 
+                        teamA[i].x, teamA[i].y, teamA[i].r, // circulo
+                        255, 0, 0, // r,g,b
+                        255); //alpha
+        }
+
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            filledCircleRGBA(renderer, //render 
+                        teamB[i].x, teamB[i].y, teamB[i].r, // circulo
+                        21, 249, 52, // r,g,b
+                        255); //alpha
+        }
+        
+        
         // Actualizar la ventana
         SDL_RenderPresent(renderer);
+        
+        
     }
 
     // limpia la app para cerrarla
