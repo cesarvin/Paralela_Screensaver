@@ -89,8 +89,8 @@ int main(int argc, char *argv[]) {
         
         teamA[i].x = rand() % SCREEN_WIDTH;
         teamA[i].y = rand() % SCREEN_HEIGHT;
-        teamA[i].vx = rand() % 2 == 0 ? V_PLAYERS : V_PLAYERS - 1;
-        teamA[i].vy = rand() % 2 == 0 ? V_PLAYERS : V_PLAYERS - 1;
+        teamA[i].vx = V_PLAYERS;
+        teamA[i].vy = V_PLAYERS;
         teamA[i].r = rand() % 10 + 20;
     }
 
