@@ -5,7 +5,7 @@ Primer Proyecto
 Para compilar ubuntu 22.04
 
 ```bash
-gcc screensaver.c -fopenmp -o screensaver.o -I /usr/include/SDL2 -I /usr/include/SDL -lSDL2 -lm -lSDL2_gfx
+g++ fondo.cpp -o fondo.o -I /usr/include/SDL2 -I /usr/include/SDL -lSDL2 -lm -lSDL2_gfx
 ```
 
 Para ejecutar 
