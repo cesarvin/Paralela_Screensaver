@@ -21,6 +21,8 @@ int V_STARS = 1;
 int NUM_PLAYERS = 5;
 int V_PLAYERS = 2;
 
+int NUM_BULLETS = 5;
+
 // Estructuras para los objetos
 struct Star {
     float x;  // pos x
@@ -31,12 +33,23 @@ struct Star {
     float alpha; // color alpha de la estrella
 };
 
+struct Bullet {
+    float x;  // pos x
+    float y;  // pos y 
+    float vx; // vel x
+    float vy; // vel y
+    float r;  // radius 
+    bool used; // usada
+};
+
 struct Player {
     float x;  // pos x
     float y;  // pos y 
     float vx; // vel x
     float vy; // vel y
     float r;  // radius 
+    Bullet bullets[5];
+    bool dead;
 };
 
 int main(int argc, char *argv[]) {
@@ -92,6 +105,7 @@ int main(int argc, char *argv[]) {
         teamA[i].vx = V_PLAYERS;
         teamA[i].vy = V_PLAYERS;
         teamA[i].r = rand() % 10 + 20;
+        teamA[i].dead = false;
     }
 
     // se inicia el equipo B
@@ -103,7 +117,28 @@ int main(int argc, char *argv[]) {
         teamB[i].vx = V_PLAYERS;
         teamB[i].vy = V_PLAYERS;
         teamB[i].r = rand() % 10 + 20;
+        teamB[i].dead = false;
     }
+
+    // disparos 
+    for (int j = 0; j < NUM_BULLETS; j++){
+        for (int i = 0; i < NUM_PLAYERS; i++) {
+            teamA[i].bullets[i].x = teamA[i].x;
+            teamA[i].bullets[i].y = teamA[i].y;
+            teamA[i].bullets[i].vx = 2 * teamA[i].vx;
+            teamA[i].bullets[i].vy = 2 * teamA[i].vy;
+            teamA[i].bullets[i].r = 5;
+            teamA[i].bullets[i].used = false;
+
+            teamB[i].bullets[i].x = teamB[i].x;
+            teamB[i].bullets[i].y = teamB[i].y;
+            teamB[i].bullets[i].vx = 2 * teamB[i].vx;
+            teamB[i].bullets[i].vy = 2 * teamB[i].vy;
+            teamB[i].bullets[i].r = 5;
+            teamB[i].bullets[i].used = false;
+        }
+    }
+
 
     // ciclo para hacer que el ciculo se mueva
     bool quit = false;
@@ -165,11 +200,44 @@ int main(int argc, char *argv[]) {
                 teamB[i].vy = -teamB[i].vy;
             }
         }
-        
+
+        // se mueven las balas
+        for (int j = 0; j < NUM_BULLETS; j++){
+            for (int i = 0; i < NUM_PLAYERS; i++) {
+                teamA[i].bullets[i].x += teamA[i].bullets[i].vx;
+                teamA[i].bullets[i].y += teamA[i].bullets[i].vy;
+
+                // Cuando tocan los bordes hay un nuevo disparo
+                if ((teamA[i].bullets[i].x < teamA[i].bullets[i].r || teamA[i].bullets[i].x > SCREEN_WIDTH - teamA[i].bullets[i].r) ||
+                    (teamA[i].bullets[i].y < teamA[i].bullets[i].r || teamA[i].bullets[i].y > SCREEN_HEIGHT - teamA[i].bullets[i].r)) {
+                    teamA[i].bullets[i].x = teamA[i].x;
+                    teamA[i].bullets[i].y = teamA[i].y;
+                    teamA[i].bullets[i].vx = teamA[i].vx;
+                    teamA[i].bullets[i].vy = teamA[i].vy;
+                    teamA[i].bullets[i].r = 5;
+                    teamA[i].bullets[i].used = false;
+                }
+                
+                teamB[i].bullets[i].x += teamB[i].bullets[i].vx;
+                teamB[i].bullets[i].y += teamB[i].bullets[i].vy;
+
+                if ((teamB[i].bullets[i].x < teamB[i].bullets[i].r || teamB[i].bullets[i].x > SCREEN_WIDTH - teamB[i].bullets[i].r) ||
+                    (teamB[i].bullets[i].y < teamB[i].bullets[i].r || teamB[i].bullets[i].y > SCREEN_HEIGHT - teamB[i].bullets[i].r)) {
+                    teamB[i].bullets[i].x = teamB[i].x;
+                    teamB[i].bullets[i].y = teamB[i].y;
+                    teamB[i].bullets[i].vx = teamB[i].vx;
+                    teamB[i].bullets[i].vy = teamB[i].vy;
+                    teamB[i].bullets[i].r = 5;
+                    teamB[i].bullets[i].used = false;
+                }
+
+            }
+        }
+       
 
         // se mueve un circulo
         SDL_SetRenderDrawColor(renderer, // render
-                            18, 24, 46,  // r,g,b
+                            0,0,0,//133, 146, 158,//18, 24, 46,  // r,g,b
                             255); // alpha
         SDL_RenderClear(renderer);
 
@@ -184,17 +252,30 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < NUM_PLAYERS; i++) {
             filledCircleRGBA(renderer, //render 
                         teamA[i].x, teamA[i].y, teamA[i].r, // circulo
-                        255, 0, 0, // r,g,b
+                        255, 255, 255,//255, 0, 0, // r,g,b
                         255); //alpha
         }
 
         for (int i = 0; i < NUM_PLAYERS; i++) {
             filledCircleRGBA(renderer, //render 
                         teamB[i].x, teamB[i].y, teamB[i].r, // circulo
-                        21, 249, 52, // r,g,b
+                        13, 141, 254,//21, 249, 52, // r,g,b
                         255); //alpha
         }
         
+        for (int j = 0; j < NUM_BULLETS; j++){
+            for (int i = 0; i < NUM_PLAYERS; i++) {
+                filledCircleRGBA(renderer, //render 
+                        teamA[i].bullets[i].x, teamA[i].bullets[i].y, teamA[i].bullets[i].r, // circulo
+                        255, 255, 255, // r,g,b
+                        255); //alpha
+
+                filledCircleRGBA(renderer, //render 
+                        teamB[i].bullets[i].x, teamB[i].bullets[i].y, teamB[i].bullets[i].r, // circulo
+                        13, 141, 254, // r,g,b
+                        255); //alpha
+            }
+        }
         
         // Actualizar la ventana
         SDL_RenderPresent(renderer);
