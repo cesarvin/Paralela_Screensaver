@@ -1,8 +1,18 @@
-
+#include <stdlib.h>
 #include "SDL.h"
 #include "SDL2_gfxPrimitives.h"
 #include "stdbool.h"
 #include "iostream"
+
+#define SWIDTH 1280
+#define SHEIGHT 720
+#define NUMSTARS 25
+#define VSTARS 1
+
+SDL_Window* window;
+SDL_Renderer* renderer;
+bool quit;
+int frm_cnt, last_frm, lst_count, tmr_fps, fps;
 
 // variables globales
 float circle_x = 320;
@@ -10,13 +20,6 @@ float circle_y = 240;
 float circle_vx = 1;
 float circle_vy = 1;
 float circle_radius = 25;
-
-// tamaño de pantalla
-int SCREEN_WIDTH = 1280;
-int SCREEN_HEIGHT = 720;
-
-int NUM_STARS = 25;
-int V_STARS = 1;
 
 int NUM_PLAYERS = 5;
 int V_PLAYERS = 2;
@@ -52,56 +55,88 @@ struct Player {
     bool dead;
 };
 
-int main(int argc, char *argv[]) {
+Star obj_stars[NUMSTARS];
 
-    // iniciar SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Error al inicializar SDL: %s\n", SDL_GetError());
-        return 1;
-    }
-
-    // crea pantalla
-    SDL_Window* window = SDL_CreateWindow("Screensaver", 
-                                          SDL_WINDOWPOS_UNDEFINED, 
-                                          SDL_WINDOWPOS_UNDEFINED, 
-                                          SCREEN_WIDTH, 
-                                          SCREEN_HEIGHT, 
-                                          SDL_WINDOW_SHOWN);
-    if (window == NULL) {
-        printf("Error al crear ventana: %s\n", SDL_GetError());
-        return 1;
-    }
-
-    // renderiza pantalla
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    
-    //comprueba si se renderizo
-    if (renderer == NULL) {
-        printf("Error al renderizar: %s\n", SDL_GetError());
-        return 1;
-    }
-
-    srand(time(NULL)); //inicializa la semilla aleatoria
-
+void Init() {
+    printf("Iniciando programa ...\n");
+    srand(time(NULL));
     // se inician las estrellas
-    Star obj_stars[NUM_STARS];
-    for (int i = 0; i < NUM_STARS; i++) {
-        
-        obj_stars[i].x = rand() % SCREEN_WIDTH;
-        obj_stars[i].y = rand() % SCREEN_HEIGHT;
-        obj_stars[i].vx = V_STARS;
+    for (int i = 0; i < NUMSTARS; i++) {
+        obj_stars[i].x = rand() % SWIDTH;
+        obj_stars[i].y = rand() % SHEIGHT;
+        obj_stars[i].vx = VSTARS;
         obj_stars[i].vy = 0;
         obj_stars[i].r = rand() % 5 + 1;
         obj_stars[i].alpha = rand() % 100 + 155;
     }
+    printf("Programa iniciado con exito\n");
+};
 
+void Render() {
+    frm_cnt++;
+    tmr_fps = SDL_GetTicks()-last_frm;
+    if(tmr_fps<(1000/60)) {
+        SDL_Delay((1000/60)-tmr_fps);
+    }
+};
+
+void Input() {
+    SDL_Event event;
+    const Uint8* keystts = SDL_GetKeyboardState(NULL);
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
+            // Se cierra la ventana
+            quit = true;
+        }
+    }
+};
+
+void Update() {
+
+};
+
+void CleanEnvironment() {
+    printf("Limpiando memoria ...\n");
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    printf("Programa cerrado con exito\n");
+};
+
+int main(int argc, char *argv[]) {
+    quit = false;
+    static int lst_time = 0;
+    // iniciar SDL
+    if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+        printf("Error al inicializar SDL: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+    // crea pantalla
+    window = SDL_CreateWindow("Screensaver", 
+                                          SDL_WINDOWPOS_UNDEFINED, 
+                                          SDL_WINDOWPOS_UNDEFINED, 
+                                          SWIDTH, 
+                                          SHEIGHT, 
+                                          SDL_WINDOW_SHOWN);
+    if (window == NULL) {
+        printf("Error al crear ventana: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+    // renderiza pantalla
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    if (renderer == NULL) {
+        printf("Error al renderizar: %s\n", SDL_GetError());
+        return EXIT_FAILURE;
+    }
+    // Inicializar configuraciones del programa
+    Init();
     // se inicia el equipo A
     Player teamA[NUM_PLAYERS];
     for (int i = 0; i < NUM_PLAYERS; i++) {
         
-        teamA[i].x = rand() % SCREEN_WIDTH;
-        teamA[i].y = rand() % SCREEN_HEIGHT;
+        teamA[i].x = rand() % SWIDTH;
+        teamA[i].y = rand() % SHEIGHT;
         teamA[i].vx = V_PLAYERS;
         teamA[i].vy = V_PLAYERS;
         teamA[i].r = rand() % 10 + 20;
@@ -112,8 +147,8 @@ int main(int argc, char *argv[]) {
     Player teamB[NUM_PLAYERS];
     for (int i = 0; i < NUM_PLAYERS; i++) {
         
-        teamB[i].x = rand() % SCREEN_WIDTH;
-        teamB[i].y = rand() % SCREEN_HEIGHT;
+        teamB[i].x = rand() % SWIDTH;
+        teamB[i].y = rand() % SHEIGHT;
         teamB[i].vx = V_PLAYERS;
         teamB[i].vy = V_PLAYERS;
         teamB[i].r = rand() % 10 + 20;
@@ -139,34 +174,25 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     // ciclo para hacer que el ciculo se mueva
-    bool quit = false;
-    SDL_Event e;
-
     while (!quit) {
-
-        // Eventos de SDL
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                // Se cierra la ventana
-                quit = true;
-                break;
-            }
+        last_frm = SDL_GetTicks();
+        if(last_frm >= (lst_time+1000)) {
+            lst_time = last_frm;
+            fps = frm_cnt;
+            frm_cnt = 0;
+            printf("FPS: %d\n",fps);
         }
-        
-        
         // se mueven las estrellas del fondo
-        for (int i = 0; i < NUM_STARS; i++) {
+        for (int i = 0; i < NUMSTARS; i++) {
             obj_stars[i].x += obj_stars[i].vx;
             obj_stars[i].y += obj_stars[i].vy;
 
             // Cuando el ciculo toca un borde se desaparece y aparece una nueva estrella
-            if (obj_stars[i].x > SCREEN_WIDTH - obj_stars[i].r) {
+            if (obj_stars[i].x > SWIDTH - obj_stars[i].r) {
                 obj_stars[i].x = 0;
-                obj_stars[i].y = rand() % SCREEN_HEIGHT;
-                obj_stars[i].vx = V_STARS;
+                obj_stars[i].y = rand() % SHEIGHT;
+                obj_stars[i].vx = VSTARS;
                 obj_stars[i].vy = 0;
                 obj_stars[i].r = rand() % 5 + 1;
             }
@@ -179,10 +205,10 @@ int main(int argc, char *argv[]) {
             teamA[i].y += teamA[i].vy;
 
             // Cuando el ciculo toca un borde invierte la dirección de la velocidad
-            if (teamA[i].x < teamA[i].r || teamA[i].x > SCREEN_WIDTH - teamA[i].r) {
+            if (teamA[i].x < teamA[i].r || teamA[i].x > SWIDTH - teamA[i].r) {
                 teamA[i].vx = -teamA[i].vx;
             }
-            if (teamA[i].y < teamA[i].r || teamA[i].y > SCREEN_HEIGHT - teamA[i].r) {
+            if (teamA[i].y < teamA[i].r || teamA[i].y > SHEIGHT - teamA[i].r) {
                 teamA[i].vy = -teamA[i].vy;
             }
         }
@@ -193,10 +219,10 @@ int main(int argc, char *argv[]) {
             teamB[i].y += teamB[i].vy;
 
             // Cuando el ciculo toca un borde invierte la dirección de la velocidad
-            if (teamB[i].x < teamB[i].r || teamB[i].x > SCREEN_WIDTH - teamB[i].r) {
+            if (teamB[i].x < teamB[i].r || teamB[i].x > SWIDTH - teamB[i].r) {
                 teamB[i].vx = -teamB[i].vx;
             }
-            if (teamB[i].y < teamB[i].r || teamB[i].y > SCREEN_HEIGHT - teamB[i].r) {
+            if (teamB[i].y < teamB[i].r || teamB[i].y > SHEIGHT - teamB[i].r) {
                 teamB[i].vy = -teamB[i].vy;
             }
         }
@@ -208,8 +234,8 @@ int main(int argc, char *argv[]) {
                 teamA[i].bullets[i].y += teamA[i].bullets[i].vy;
 
                 // Cuando tocan los bordes hay un nuevo disparo
-                if ((teamA[i].bullets[i].x < teamA[i].bullets[i].r || teamA[i].bullets[i].x > SCREEN_WIDTH - teamA[i].bullets[i].r) ||
-                    (teamA[i].bullets[i].y < teamA[i].bullets[i].r || teamA[i].bullets[i].y > SCREEN_HEIGHT - teamA[i].bullets[i].r)) {
+                if ((teamA[i].bullets[i].x < teamA[i].bullets[i].r || teamA[i].bullets[i].x > SWIDTH - teamA[i].bullets[i].r) ||
+                    (teamA[i].bullets[i].y < teamA[i].bullets[i].r || teamA[i].bullets[i].y > SHEIGHT - teamA[i].bullets[i].r)) {
                     teamA[i].bullets[i].x = teamA[i].x;
                     teamA[i].bullets[i].y = teamA[i].y;
                     teamA[i].bullets[i].vx = teamA[i].vx;
@@ -221,8 +247,8 @@ int main(int argc, char *argv[]) {
                 teamB[i].bullets[i].x += teamB[i].bullets[i].vx;
                 teamB[i].bullets[i].y += teamB[i].bullets[i].vy;
 
-                if ((teamB[i].bullets[i].x < teamB[i].bullets[i].r || teamB[i].bullets[i].x > SCREEN_WIDTH - teamB[i].bullets[i].r) ||
-                    (teamB[i].bullets[i].y < teamB[i].bullets[i].r || teamB[i].bullets[i].y > SCREEN_HEIGHT - teamB[i].bullets[i].r)) {
+                if ((teamB[i].bullets[i].x < teamB[i].bullets[i].r || teamB[i].bullets[i].x > SWIDTH - teamB[i].bullets[i].r) ||
+                    (teamB[i].bullets[i].y < teamB[i].bullets[i].r || teamB[i].bullets[i].y > SHEIGHT - teamB[i].bullets[i].r)) {
                     teamB[i].bullets[i].x = teamB[i].x;
                     teamB[i].bullets[i].y = teamB[i].y;
                     teamB[i].bullets[i].vx = teamB[i].vx;
@@ -242,7 +268,7 @@ int main(int argc, char *argv[]) {
         SDL_RenderClear(renderer);
 
 
-        for (int i = 0; i < NUM_STARS; i++) {
+        for (int i = 0; i < NUMSTARS; i++) {
             filledCircleRGBA(renderer, //render 
                         obj_stars[i].x, obj_stars[i].y, obj_stars[i].r, // circulo
                         253, 253, 0, // r,g,b
@@ -279,14 +305,12 @@ int main(int argc, char *argv[]) {
         
         // Actualizar la ventana
         SDL_RenderPresent(renderer);
-        
-        
+        Input();
+        Update();
+        Render();
     }
-
     // limpia la app para cerrarla
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    CleanEnvironment();
 
-    return 0;
+    return EXIT_SUCCESS;
 }
