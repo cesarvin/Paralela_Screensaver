@@ -4,13 +4,14 @@
 #include "stdbool.h"
 #include "iostream"
 #include <vector>
+#include <time.h>
 
 #define SWIDTH 1280
 #define SHEIGHT 720
 #define NUMSTARS 25
 #define VSTARS 1
-#define NUMPLAYERS 5
-#define VPLAYERS 2
+#define NUMPLAYERS 7
+#define VPLAYERS 7
 #define NUMBULLETS 5
 
 // variables globales
@@ -57,29 +58,64 @@ class Star {
 };
 
 // Estructura para las balas
-struct Bullet {
-    float x;  // pos x
-    float y;  // pos y 
-    float vx; // vel x
-    float vy; // vel y
-    float r;  // radius 
-    bool used; // usada
-};
-
-// Estructura para los jugadores
 struct Player {
-    float x;  // pos x
-    float y;  // pos y 
-    float vx; // vel x
-    float vy; // vel y
-    float r;  // radius 
-    Bullet bullets[5];
-    bool dead;
+    private:
+        int id;
+        float x, y, vx, vy;
+        float r, timer;
+        int health;
+        time_t counter;
+    public:
+        Player(int id,float x,float y,float r) {
+            this->id = id;
+            this->x = x;
+            this->y = y;
+            this->r = r;
+            this->health = 5;
+            GenerateVelocities();
+            ResetTimeParameters();
+        }
+        int GetId(void) { return this->id; }
+        int GetX(void) { return this->x; }
+        int GetY(void) { return this->y; }
+        int GetVX(void) { return this->vx; }
+        int GetVY(void) { return this->vy; }
+        int GetR(void) { return this->r; }
+        void TakeHit(void) { this->health -= 1; }
+        bool IsDead(void) {
+            bool result = this->health > 0 ? false : true;
+            return result; 
+        }
+        void GenerateVelocities(void) {
+            int num1 = rand() % 10;
+            if(num1 >= 5) { this->vx = rand() % VPLAYERS; }
+            else { this->vx = (rand() % VPLAYERS) * -1; }
+            int num2 = rand() % 10;
+            if(num2 >= 5) { this->vy = rand() % VPLAYERS; }
+            else { this->vy = (rand() % VPLAYERS) * -1; }
+        }
+        void UpdatePosition(void) {
+            if(time(0) >= this->counter + this->timer) {
+                ResetTimeParameters();
+                GenerateVelocities();
+            }
+            if(this->x-this->r < this->r+10 && this->vx < 0) { this->vx *= -1; }
+            if(this->x+this->r > SWIDTH-(this->r+10) && this->vx > 0) { this->vx *= -1; }
+            if(this->y-this->r < this->r+10 && this->vy < 0) { this->vy *= -1; }
+            if(this->y+this->r > SHEIGHT-(this->r+10) && this->vy > 0) { this->vy *= -1; }
+            this->x += this->vx;
+            this->y += this->vy;
+        }
+        void ResetTimeParameters(void) {
+            this->counter = time(0);
+            this->timer = (float)(rand() % 2)+((float)(rand())/(float)(RAND_MAX));
+        }
+        ~Player() {}
 };
 
 std::vector<Star*> obj_stars;
-Player teamA[NUMPLAYERS];
-Player teamB[NUMPLAYERS];
+std::vector<Player*> teamA;
+std::vector<Player*> teamB;
 
 void Init() {
     printf("Iniciando programa ...\n");
@@ -94,43 +130,25 @@ void Init() {
                             rand() % 100 + 155);
         obj_stars.push_back(obj);
     }
-    // se inicia el equipo A
-    for (int i = 0; i < NUMPLAYERS; i++) {
-        teamA[i].x = rand() % SWIDTH;
-        teamA[i].y = rand() % SHEIGHT;
-        teamA[i].vx = VPLAYERS;
-        teamA[i].vy = VPLAYERS;
-        teamA[i].r = rand() % 10 + 20;
-        teamA[i].dead = false;
+    // Inicializar equipo A
+    for(int i = 0;i < NUMPLAYERS;i++) {
+        int radius = rand() % 10 + 20;
+        Player* plyr = new Player(i,
+                                 rand() % (SWIDTH - radius*2) + (radius*2),
+                                 rand() % (SHEIGHT - radius*2) + (radius*2),
+                                 radius);
+        teamA.push_back(plyr);
     }
-    // se inicia el equipo B
-    for (int i = 0; i < NUMPLAYERS; i++) {
-        teamB[i].x = rand() % SWIDTH;
-        teamB[i].y = rand() % SHEIGHT;
-        teamB[i].vx = VPLAYERS;
-        teamB[i].vy = VPLAYERS;
-        teamB[i].r = rand() % 10 + 20;
-        teamB[i].dead = false;
+    // Inicializar equipo B
+    for(int i = 0;i < NUMPLAYERS;i++) {
+        int radius = rand() % 10 + 20;
+        Player* plyr = new Player(i,
+                                 rand() % (SWIDTH - radius*2) + (radius*2),
+                                 rand() % (SHEIGHT - radius*2) + (radius*2),
+                                 radius);
+        teamB.push_back(plyr);
     }
-    // disparos 
-    for (int j = 0; j < NUMBULLETS; j++){
-        for (int i = 0; i < NUMPLAYERS; i++) {
-            // Equipo A
-            teamA[i].bullets[i].x = teamA[i].x;
-            teamA[i].bullets[i].y = teamA[i].y;
-            teamA[i].bullets[i].vx = 2 * teamA[i].vx;
-            teamA[i].bullets[i].vy = 2 * teamA[i].vy;
-            teamA[i].bullets[i].r = 5;
-            teamA[i].bullets[i].used = false;
-            // Equipo B
-            teamB[i].bullets[i].x = teamB[i].x;
-            teamB[i].bullets[i].y = teamB[i].y;
-            teamB[i].bullets[i].vx = 2 * teamB[i].vx;
-            teamB[i].bullets[i].vy = 2 * teamB[i].vy;
-            teamB[i].bullets[i].r = 5;
-            teamB[i].bullets[i].used = false;
-        }
-    }
+    // Inicializar equipo B 
     printf("Programa iniciado con exito\n");
 };
 
@@ -148,36 +166,21 @@ void Render() {
     // Renderizar estrellas
     for(Star* star : obj_stars) {
         filledCircleRGBA(renderer, //render 
-                    star->GetX(), star->GetY(), star->GetR(), // circulo
+                    star->GetX(),star->GetY(),star->GetR(), // circulo
                     253, 253, 0, // r,g,b
                     star->GetAlpha()); //alpha
     }
-    // Renderizar equipo A
-    for (int i = 0; i < NUMPLAYERS; i++) {
+    // Renderizar Equipo A
+    for(Player* plyr : teamA) {
         filledCircleRGBA(renderer, //render 
-                    teamA[i].x, teamA[i].y, teamA[i].r, // circulo
-                    255, 255, 255,//255, 0, 0, // r,g,b
-                    255); //alpha
+                    plyr->GetX(),plyr->GetY(),plyr->GetR(), // circulo
+                    255, 255, 255, 255); // r,g,b,alpha
     }
-    // Renderizar equipo B
-    for (int i = 0; i < NUMPLAYERS; i++) {
+    // Renderizar Equipo B
+    for(Player* plyr : teamB) {
         filledCircleRGBA(renderer, //render 
-                    teamB[i].x, teamB[i].y, teamB[i].r, // circulo
-                    13, 141, 254,//21, 249, 52, // r,g,b
-                    255); //alpha
-    }
-    // Renderizar balas
-    for (int j = 0; j < NUMBULLETS; j++){
-        for (int i = 0; i < NUMPLAYERS; i++) {
-            filledCircleRGBA(renderer, //render 
-                    teamA[i].bullets[i].x, teamA[i].bullets[i].y, teamA[i].bullets[i].r, // circulo
-                    255, 255, 255, // r,g,b
-                    255); //alpha
-            filledCircleRGBA(renderer, //render 
-                    teamB[i].bullets[i].x, teamB[i].bullets[i].y, teamB[i].bullets[i].r, // circulo
-                    13, 141, 254, // r,g,b
-                    255); //alpha
-        }
+                    plyr->GetX(),plyr->GetY(),plyr->GetR(), // circulo
+                    13, 141, 254, 255); // r,g,b,alpha
     }
     SDL_RenderPresent(renderer);
 };
@@ -202,58 +205,13 @@ void Update() {
             star->RestartPosition();
         }
     }
-    // se mueven los players del equipo A
-    for (int i = 0; i < NUMPLAYERS; i++) {
-        teamA[i].x += teamA[i].vx;
-        teamA[i].y += teamA[i].vy;
-
-        // Cuando el ciculo toca un borde invierte la dirección de la velocidad
-        if (teamA[i].x < teamA[i].r || teamA[i].x > SWIDTH - teamA[i].r) {
-            teamA[i].vx = -teamA[i].vx;
-        }
-        if (teamA[i].y < teamA[i].r || teamA[i].y > SHEIGHT - teamA[i].r) {
-            teamA[i].vy = -teamA[i].vy;
-        }
+    // Equipo A
+    for(Player* plyr : teamA) {
+        plyr->UpdatePosition();
     }
-    // se mueven los players del equipo B
-    for (int i = 0; i < NUMPLAYERS; i++) {
-        teamB[i].x += teamB[i].vx;
-        teamB[i].y += teamB[i].vy;
-        // Cuando el ciculo toca un borde invierte la dirección de la velocidad
-        if (teamB[i].x < teamB[i].r || teamB[i].x > SWIDTH - teamB[i].r) {
-            teamB[i].vx = -teamB[i].vx;
-        }
-        if (teamB[i].y < teamB[i].r || teamB[i].y > SHEIGHT - teamB[i].r) {
-            teamB[i].vy = -teamB[i].vy;
-        }
-    }
-    // se mueven las balas
-    for (int j = 0; j < NUMBULLETS; j++){
-        for (int i = 0; i < NUMPLAYERS; i++) {
-            teamA[i].bullets[i].x += teamA[i].bullets[i].vx;
-            teamA[i].bullets[i].y += teamA[i].bullets[i].vy;
-            // Cuando tocan los bordes hay un nuevo disparo
-            if ((teamA[i].bullets[i].x < teamA[i].bullets[i].r || teamA[i].bullets[i].x > SWIDTH - teamA[i].bullets[i].r) ||
-                (teamA[i].bullets[i].y < teamA[i].bullets[i].r || teamA[i].bullets[i].y > SHEIGHT - teamA[i].bullets[i].r)) {
-                teamA[i].bullets[i].x = teamA[i].x;
-                teamA[i].bullets[i].y = teamA[i].y;
-                teamA[i].bullets[i].vx = teamA[i].vx;
-                teamA[i].bullets[i].vy = teamA[i].vy;
-                teamA[i].bullets[i].r = 5;
-                teamA[i].bullets[i].used = false;
-            }
-            teamB[i].bullets[i].x += teamB[i].bullets[i].vx;
-            teamB[i].bullets[i].y += teamB[i].bullets[i].vy;
-            if ((teamB[i].bullets[i].x < teamB[i].bullets[i].r || teamB[i].bullets[i].x > SWIDTH - teamB[i].bullets[i].r) ||
-                (teamB[i].bullets[i].y < teamB[i].bullets[i].r || teamB[i].bullets[i].y > SHEIGHT - teamB[i].bullets[i].r)) {
-                teamB[i].bullets[i].x = teamB[i].x;
-                teamB[i].bullets[i].y = teamB[i].y;
-                teamB[i].bullets[i].vx = teamB[i].vx;
-                teamB[i].bullets[i].vy = teamB[i].vy;
-                teamB[i].bullets[i].r = 5;
-                teamB[i].bullets[i].used = false;
-            }
-        }
+    // Equipo B
+    for(Player* plyr : teamB) {
+        plyr->UpdatePosition();
     }
 };
 
@@ -263,6 +221,14 @@ void CleanEnvironment() {
         delete star;
     }
     obj_stars.clear();
+    for(Player* plyr : teamA) {
+        delete plyr;
+    }
+    teamA.clear();
+    for(Player* plyr : teamB) {
+        delete plyr;
+    }
+    teamB.clear();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
