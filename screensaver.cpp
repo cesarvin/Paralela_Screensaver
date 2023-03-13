@@ -3,6 +3,7 @@
 #include "SDL2_gfxPrimitives.h"
 #include "stdbool.h"
 #include "iostream"
+#include <vector>
 
 #define SWIDTH 1280
 #define SHEIGHT 720
@@ -24,13 +25,35 @@ float circle_vy = 1;
 float circle_radius = 25;
 
 // Estructura para las estrellas
-struct Star {
-    float x;  // pos x
-    float y;  // pos y 
-    float vx; // vel x
-    float vy; // vel y
-    float r;  // radius 
-    float alpha; // color alpha de la estrella
+class Star {
+    private:
+        float x, y, vx, vy;  // pos x, pos y, vel x, vel y
+        float r, alpha;  // radius, color alpha
+    public:
+        Star(float x,float y,float vx,float vy,float r,float alpha) {
+            this->x = x;
+            this->y = y;
+            this->vx = vx;
+            this->vy = vy;
+            this->r = r;
+            this->alpha = alpha;
+        }
+        float GetX(void) { return this->x; }
+        float GetY(void) { return this->y; }
+        float GetVX(void) { return this->vx; }
+        float GetVY(void) { return this->vy; }
+        float GetR(void) { return this->r; }
+        float GetAlpha(void) { return this->alpha; }
+        void UpdateVel(void) {
+            this->x += this->vx;
+            this->y += this->vy;
+        }
+        void RestartPosition(void) {
+            this->x = 0;
+            this->y = rand() % SHEIGHT;
+            this->r = rand() % 5 + 1;
+        }
+        ~Star() { }
 };
 
 // Estructura para las balas
@@ -54,7 +77,7 @@ struct Player {
     bool dead;
 };
 
-Star obj_stars[NUMSTARS];
+std::vector<Star*> obj_stars;
 Player teamA[NUMPLAYERS];
 Player teamB[NUMPLAYERS];
 
@@ -63,12 +86,13 @@ void Init() {
     srand(time(NULL));
     // se inician las estrellas
     for (int i = 0; i < NUMSTARS; i++) {
-        obj_stars[i].x = rand() % SWIDTH;
-        obj_stars[i].y = rand() % SHEIGHT;
-        obj_stars[i].vx = VSTARS;
-        obj_stars[i].vy = 0;
-        obj_stars[i].r = rand() % 5 + 1;
-        obj_stars[i].alpha = rand() % 100 + 155;
+        Star* obj = new Star(rand() % SWIDTH,
+                            rand() % SHEIGHT,
+                            VSTARS,
+                            0,
+                            rand() % 5 + 1,
+                            rand() % 100 + 155);
+        obj_stars.push_back(obj);
     }
     // se inicia el equipo A
     for (int i = 0; i < NUMPLAYERS; i++) {
@@ -122,11 +146,11 @@ void Render() {
                         255); // alpha
     SDL_RenderClear(renderer);
     // Renderizar estrellas
-    for (int i = 0; i < NUMSTARS; i++) {
+    for(Star* star : obj_stars) {
         filledCircleRGBA(renderer, //render 
-                    obj_stars[i].x, obj_stars[i].y, obj_stars[i].r, // circulo
+                    star->GetX(), star->GetY(), star->GetR(), // circulo
                     253, 253, 0, // r,g,b
-                    obj_stars[i].alpha); //alpha
+                    star->GetAlpha()); //alpha
     }
     // Renderizar equipo A
     for (int i = 0; i < NUMPLAYERS; i++) {
@@ -170,17 +194,12 @@ void Input() {
 };
 
 void Update() {
-    // se mueven las estrellas del fondo
-    for (int i = 0; i < NUMSTARS; i++) {
-        obj_stars[i].x += obj_stars[i].vx;
-        obj_stars[i].y += obj_stars[i].vy;
+    // Movimiento de estrellas
+    for(Star* star : obj_stars) {
+        star->UpdateVel();
         // Cuando el ciculo toca un borde se desaparece y aparece una nueva estrella
-        if (obj_stars[i].x > SWIDTH - obj_stars[i].r) {
-            obj_stars[i].x = 0;
-            obj_stars[i].y = rand() % SHEIGHT;
-            obj_stars[i].vx = VSTARS;
-            obj_stars[i].vy = 0;
-            obj_stars[i].r = rand() % 5 + 1;
+        if (star->GetX() > SWIDTH - star->GetR()) {
+            star->RestartPosition();
         }
     }
     // se mueven los players del equipo A
@@ -240,6 +259,10 @@ void Update() {
 
 void CleanEnvironment() {
     printf("Limpiando memoria ...\n");
+    for(Star* star : obj_stars) {
+        delete star;
+    }
+    obj_stars.clear();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
