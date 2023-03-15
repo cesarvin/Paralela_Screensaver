@@ -5,6 +5,7 @@
 #include "iostream"
 #include <vector>
 #include <time.h>
+#include <math.h>
 
 #define SWIDTH 1280
 #define SHEIGHT 720
@@ -13,17 +14,23 @@
 #define NUMPLAYERS 7
 #define VPLAYERS 7
 #define NUMBULLETS 5
+#define VBULLET 3
+#define PHEALTH 5
+#define PI 3.14159265
+
+class Star;
+class Bullet;
+class Player;
 
 // variables globales
 SDL_Window* window;
 SDL_Renderer* renderer;
 bool quit;
 int frm_cnt, last_frm, lst_count, tmr_fps, fps;
-float circle_x = 320;
-float circle_y = 240;
-float circle_vx = 1;
-float circle_vy = 1;
-float circle_radius = 25;
+std::vector<Star*> obj_stars;
+std::vector<Bullet*> bullets;
+std::vector<Player*> teamA;
+std::vector<Player*> teamB;
 
 // Estructura para las estrellas
 class Star {
@@ -57,31 +64,98 @@ class Star {
         ~Star() { }
 };
 
-// Estructura para las balas
-struct Player {
+// Estructura pra las balas
+class Bullet {
     private:
-        int id;
+        int group, parent_id;
+        float x, y, vx, vy, r;
+    public:
+        Bullet(int group,int parent_id,float x,float y,float vx,float vy,float r) {
+            this->group = group;
+            this->parent_id = parent_id;
+            this->x = x;
+            this->y = y;
+            this->vx = vx;
+            this->vy = vy;
+            this->r = r;
+        }
+        int GetGroupId(void) { return this->group; }
+        int GetParentId(void) { return this->parent_id; }
+        float GetX(void) { return this->x; }
+        float GetY(void) { return this->y; }
+        float GetVX(void) { return this->vx; }
+        float GetVY(void) { return this->vy; }
+        float GetR(void) { return this->r; }
+        void UpdatePosition(void) {
+            this->x += this->vx;
+            this->y += this->vy;
+        }
+        ~Bullet() {}
+};
+
+// Estructura para los jugadores
+class Player {
+    private:
+        int id, group, nbullets;
         float x, y, vx, vy;
         float r, timer;
         int health;
-        time_t counter;
+        time_t counter, atktime;
     public:
-        Player(int id,float x,float y,float r) {
+        Player(int id,int group,float x,float y,float r) {
             this->id = id;
+            this->group = group;
+            this->nbullets = NUMBULLETS;
             this->x = x;
             this->y = y;
             this->r = r;
-            this->health = 5;
+            this->health = PHEALTH;
+            this->atktime = time(0) + 1.2;
             GenerateVelocities();
             ResetTimeParameters();
         }
         int GetId(void) { return this->id; }
+        int GetGroup(void) { return this->group; }
+        int GetBullets(void) { return this->nbullets; }
         int GetX(void) { return this->x; }
         int GetY(void) { return this->y; }
         int GetVX(void) { return this->vx; }
         int GetVY(void) { return this->vy; }
         int GetR(void) { return this->r; }
-        void TakeHit(void) { this->health -= 1; }
+        void TakeHit(void) { 
+            if(this->health > 0) { this->health -= 1; }
+        }
+        void Shoot(void) { 
+            if(time(0) >= this->atktime && this->nbullets > 0) {
+                // Disparo a miembro random del otro equipo
+                Player* plyr = nullptr;
+                if(this->group == 1) { 
+                    plyr = teamB.at(rand() % NUMPLAYERS);
+                } else if(this->group == 2) { 
+                    plyr = teamA.at(rand() % NUMPLAYERS); 
+                }
+                float dx = plyr->GetX()-this->x;
+                float dy = plyr->GetY()-this->y;
+                float angle = atan(abs(dx/dy));
+                float nvx = sin(angle) * VBULLET;
+                float nvy = cos(angle) * VBULLET;
+                if(dx < 0) { nvx *= -1; }
+                if(dy < 0) { nvy *= -1; }
+                this->atktime = time(0) + 1.2;
+                Bullet* bullet = new Bullet(this->group,
+                                            this->id,
+                                            this->x,
+                                            this->y,
+                                            nvx,
+                                            nvy,
+                                            3);
+                bullets.push_back(bullet);
+                this->nbullets -= 1;
+            }
+        }
+        void AddBullet(void) {
+            if(this->nbullets < NUMBULLETS) { this->nbullets += 1; }
+        }
         bool IsDead(void) {
             bool result = this->health > 0 ? false : true;
             return result; 
@@ -110,12 +184,15 @@ struct Player {
             this->counter = time(0);
             this->timer = (float)(rand() % 2)+((float)(rand())/(float)(RAND_MAX));
         }
+        void RestartPlayer(void) {
+            this->health = PHEALTH;
+            this->nbullets = NUMBULLETS;
+            this->r = rand() % 10 + 20;
+            this->x = rand() % (SWIDTH - (int)this->r*2) + (this->r*2);
+            this->y = rand() % (SHEIGHT - (int)this->r*2) + (this->r*2);
+        }
         ~Player() {}
 };
-
-std::vector<Star*> obj_stars;
-std::vector<Player*> teamA;
-std::vector<Player*> teamB;
 
 void Init() {
     printf("Iniciando programa ...\n");
@@ -133,7 +210,7 @@ void Init() {
     // Inicializar equipo A
     for(int i = 0;i < NUMPLAYERS;i++) {
         int radius = rand() % 10 + 20;
-        Player* plyr = new Player(i,
+        Player* plyr = new Player(i,1, // id, group
                                  rand() % (SWIDTH - radius*2) + (radius*2),
                                  rand() % (SHEIGHT - radius*2) + (radius*2),
                                  radius);
@@ -142,13 +219,12 @@ void Init() {
     // Inicializar equipo B
     for(int i = 0;i < NUMPLAYERS;i++) {
         int radius = rand() % 10 + 20;
-        Player* plyr = new Player(i,
+        Player* plyr = new Player(i,2, // id, group
                                  rand() % (SWIDTH - radius*2) + (radius*2),
                                  rand() % (SHEIGHT - radius*2) + (radius*2),
                                  radius);
         teamB.push_back(plyr);
     }
-    // Inicializar equipo B 
     printf("Programa iniciado con exito\n");
 };
 
@@ -182,6 +258,17 @@ void Render() {
                     plyr->GetX(),plyr->GetY(),plyr->GetR(), // circulo
                     13, 141, 254, 255); // r,g,b,alpha
     }
+    for(Bullet* bullet : bullets) {
+        if(bullet->GetGroupId() == 1) {
+            filledCircleRGBA(renderer, //render 
+                        bullet->GetX(),bullet->GetY(),bullet->GetR(), // circulo
+                        255, 0, 0, 255); // r,g,b,alpha
+        } else {
+            filledCircleRGBA(renderer, //render 
+                        bullet->GetX(),bullet->GetY(),bullet->GetR(), // circulo
+                        0, 255, 0, 255); // r,g,b,alpha
+        }
+    }
     SDL_RenderPresent(renderer);
 };
 
@@ -207,11 +294,83 @@ void Update() {
     }
     // Equipo A
     for(Player* plyr : teamA) {
+        if(plyr->IsDead()) {
+            plyr->RestartPlayer();
+        }
         plyr->UpdatePosition();
+        plyr->Shoot();
     }
     // Equipo B
     for(Player* plyr : teamB) {
+        if(plyr->IsDead()) {
+            plyr->RestartPlayer();
+        }
         plyr->UpdatePosition();
+        plyr->Shoot();
+    }
+    // Balas
+    for(int i = 0;i < bullets.size();i++) {
+        Bullet* bullet = bullets.at(i);
+        Player* bplyr = nullptr;
+        bool cond = false;
+        bullet->UpdatePosition();
+        if(bullet->GetGroupId() == 1) {
+            for(Player* plyr : teamA) {
+                if(plyr->GetId() == bullet->GetParentId()) {
+                    bplyr = plyr;
+                    break;
+                }
+            }
+            for(Player* plyr : teamB) {
+                float lradius = sqrt(pow(bullet->GetX()-plyr->GetX(),2.0)+
+                                    pow(bullet->GetY()-plyr->GetY(),2.0));
+                if(lradius <= plyr->GetR()) {
+                    bplyr->AddBullet();
+                    plyr->TakeHit();
+                    bullets.erase(bullets.begin()+i);
+                    delete bullet;
+                    cond = true;
+                    break;
+                }
+            }
+            if(!cond) {
+                if(bullet->GetX() > SWIDTH || bullet->GetX() < 0 ||
+                    bullet->GetY() > SHEIGHT || bullet->GetY() < 0) {
+                    bplyr->AddBullet();
+                    bullets.erase(bullets.begin()+i);
+                    delete bullet;
+                    break;
+                }
+            }
+        } else {
+            for(Player* plyr : teamB) {
+                if(plyr->GetId() == bullet->GetParentId()) {
+                    bplyr = plyr;
+                    break;
+                }
+            }
+            for(Player* plyr : teamA) {
+                float lradius = sqrt(pow(bullet->GetX()-plyr->GetX(),2.0)+
+                                    pow(bullet->GetY()-plyr->GetY(),2.0));
+                if(lradius <= plyr->GetR()) {
+                    bplyr->AddBullet();
+                    plyr->TakeHit();
+                    bullets.erase(bullets.begin()+i);
+                    delete bullet;
+                    cond = true;
+                    break;
+                }
+            }
+            if(!cond) {
+                if(bullet->GetX() > SWIDTH || bullet->GetX() < 0 ||
+                    bullet->GetY() > SHEIGHT || bullet->GetY() < 0) {
+                    bplyr->AddBullet();
+                    bullets.erase(bullets.begin()+i);
+                    delete bullet;
+                    break;
+                }
+            }
+        }
     }
 };
 
@@ -229,6 +388,10 @@ void CleanEnvironment() {
         delete plyr;
     }
     teamB.clear();
+    for(Bullet* bullet : bullets) {
+        delete bullet;
+    }
+    bullets.clear();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
