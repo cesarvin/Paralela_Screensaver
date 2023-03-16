@@ -11,11 +11,7 @@
 #define SHEIGHT 720
 #define NUMSTARS 25
 #define VSTARS 1
-#define NUMPLAYERS 7
 #define VPLAYERS 7
-#define NUMBULLETS 5
-#define VBULLET 3
-#define PHEALTH 5
 #define PI 3.14159265
 
 class Star;
@@ -31,6 +27,7 @@ std::vector<Star*> obj_stars;
 std::vector<Bullet*> bullets;
 std::vector<Player*> teamA;
 std::vector<Player*> teamB;
+int numplayers, numbullets, phealth, vbullet;
 
 // Estructura para las estrellas
 class Star {
@@ -105,11 +102,11 @@ class Player {
         Player(int id,int group,float x,float y,float r) {
             this->id = id;
             this->group = group;
-            this->nbullets = NUMBULLETS;
+            this->nbullets = numbullets;
             this->x = x;
             this->y = y;
             this->r = r;
-            this->health = PHEALTH;
+            this->health = phealth;
             this->atktime = time(0) + 1.2;
             GenerateVelocities();
             ResetTimeParameters();
@@ -130,15 +127,15 @@ class Player {
                 // Disparo a miembro random del otro equipo
                 Player* plyr = nullptr;
                 if(this->group == 1) { 
-                    plyr = teamB.at(rand() % NUMPLAYERS);
+                    plyr = teamB.at(rand() % numplayers);
                 } else if(this->group == 2) { 
-                    plyr = teamA.at(rand() % NUMPLAYERS); 
+                    plyr = teamA.at(rand() % numplayers); 
                 }
                 float dx = plyr->GetX()-this->x;
                 float dy = plyr->GetY()-this->y;
                 float angle = atan(abs(dx/dy));
-                float nvx = sin(angle) * VBULLET;
-                float nvy = cos(angle) * VBULLET;
+                float nvx = sin(angle) * vbullet;
+                float nvy = cos(angle) * vbullet;
                 if(dx < 0) { nvx *= -1; }
                 if(dy < 0) { nvy *= -1; }
                 this->atktime = time(0) + 1.2;
@@ -154,7 +151,9 @@ class Player {
             }
         }
         void AddBullet(void) {
-            if(this->nbullets < NUMBULLETS) { this->nbullets += 1; }
+            if(this->nbullets < numbullets) { 
+                this->nbullets += 1; 
+            }
         }
         bool IsDead(void) {
             bool result = this->health > 0 ? false : true;
@@ -185,8 +184,8 @@ class Player {
             this->timer = (float)(rand() % 2)+((float)(rand())/(float)(RAND_MAX));
         }
         void RestartPlayer(void) {
-            this->health = PHEALTH;
-            this->nbullets = NUMBULLETS;
+            this->health = phealth;
+            this->nbullets = numbullets;
             this->r = rand() % 10 + 20;
             this->x = rand() % (SWIDTH - (int)this->r*2) + (this->r*2);
             this->y = rand() % (SHEIGHT - (int)this->r*2) + (this->r*2);
@@ -208,7 +207,7 @@ void Init() {
         obj_stars.push_back(obj);
     }
     // Inicializar equipo A
-    for(int i = 0;i < NUMPLAYERS;i++) {
+    for(int i = 0;i < numplayers;i++) {
         int radius = rand() % 10 + 20;
         Player* plyr = new Player(i,1, // id, group
                                  rand() % (SWIDTH - radius*2) + (radius*2),
@@ -217,7 +216,7 @@ void Init() {
         teamA.push_back(plyr);
     }
     // Inicializar equipo B
-    for(int i = 0;i < NUMPLAYERS;i++) {
+    for(int i = 0;i < numplayers;i++) {
         int radius = rand() % 10 + 20;
         Player* plyr = new Player(i,2, // id, group
                                  rand() % (SWIDTH - radius*2) + (radius*2),
@@ -401,6 +400,21 @@ void CleanEnvironment() {
 int main(int argc, char *argv[]) {
     quit = false;
     static int lst_time = 0;
+    numplayers = 1;
+    numbullets = 5;
+    vbullet = 3;
+    phealth = 5;
+    if(argc > 4) {
+        numplayers = std::stoi(argv[1],NULL,10);
+        if(numplayers < 1) { numplayers = 1; }
+        numbullets = std::stoi(argv[2],NULL,10);
+        if(numbullets < 1) { numbullets = 1; }
+        vbullet = std::stoi(argv[3],NULL,10);
+        if(vbullet < 1) { vbullet = 1; }
+        phealth = std::stoi(argv[4],NULL,10);
+        if(phealth < 1) { phealth = 1; }
+    }
+    printf("Num: %d\n",numplayers);
     // iniciar SDL
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         printf("Error al inicializar SDL: %s\n", SDL_GetError());
