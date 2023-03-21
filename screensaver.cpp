@@ -421,7 +421,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     // crea pantalla
-    window = SDL_CreateWindow("Screensaver", 
+    window = SDL_CreateWindow("Blasters", 
                                           SDL_WINDOWPOS_UNDEFINED, 
                                           SDL_WINDOWPOS_UNDEFINED, 
                                           SWIDTH, 
