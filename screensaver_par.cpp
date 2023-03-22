@@ -423,6 +423,7 @@ int main(int argc, char *argv[]) {
     vbullet = 3;
     phealth = 5;
     num_thds = 10;
+
     if(argc > 4) {
         numplayers = std::stoi(argv[1],NULL,10);
         if(numplayers < 1) { numplayers = 1; }
@@ -432,6 +433,8 @@ int main(int argc, char *argv[]) {
         if(vbullet < 1) { vbullet = 1; }
         phealth = std::stoi(argv[4],NULL,10);
         if(phealth < 1) { phealth = 1; }
+        num_thds = std::stoi(argv[5],NULL,10);
+        if(num_thds < 1) { num_thds = 1; }
     }
     
     // iniciar SDL
@@ -461,16 +464,25 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(numplayers);
     // Loop principal
     while (!quit) {
-        last_frm = SDL_GetTicks();
-        if(last_frm >= (lst_time+1000)) {
-            lst_time = last_frm;
-            fps = frm_cnt;
-            frm_cnt = 0;
-            printf("FPS: %d\n",fps);
+        #pragma omp for
+        for (int i = 0; i < numplayers; i++) {
+            last_frm = SDL_GetTicks();
+            if(last_frm >= (lst_time+1000)) {
+                #pragma omp critical
+                {
+                    lst_time = last_frm;
+                    fps = frm_cnt;
+                    frm_cnt = 0;
+                    printf("FPS: %d - Threads %d\n",fps, num_thds);
+                }
+            }
+            Input();
+            Update();
+            Render();
         }
-        Input(); 
-        Update();
-        Render();
+        // Input(); 
+        // Update();
+        // Render();
     }
     // limpia la app para cerrarla
     CleanEnvironment();
