@@ -230,8 +230,8 @@ void Init() {
 };
 
 void Render() {
-    // #pragma omp parallel
-    // {
+    #pragma omp parallel
+    {
         #pragma omp single
         {
             frm_cnt++;
@@ -246,8 +246,8 @@ void Render() {
             SDL_RenderClear(renderer);
         }
         // Renderizar estrellas
-        #pragma omp for
-        for(int i = 0;i <= obj_stars.size()-1;i++) {
+        #pragma omp for private(i) shared(obj_stars)
+        for(int i = 0;i < obj_stars.size();i++) {
             Star* star = obj_stars[i];
             filledCircleRGBA(renderer, //render 
                         star->GetX(),star->GetY(),star->GetR(), // circulo
@@ -255,23 +255,23 @@ void Render() {
                         star->GetAlpha()); //alpha
         }
         // Renderizar Equipo A
-        #pragma omp for
-        for(int j = 0;j <= teamA.size()-1;j++) {
+        #pragma omp for private(j) shared(teamA)
+        for(int j = 0;j < teamA.size();j++) {
             Player* plyr = teamA[j];
             filledCircleRGBA(renderer, //render 
                         plyr->GetX(),plyr->GetY(),plyr->GetR(), // circulo
                         255, 255, 255, 255); // r,g,b,alpha
         }
         // Renderizar Equipo B
-        #pragma omp for 
-        for(int k = 0;k <= teamB.size()-1;k++) {
+        #pragma omp for private(k) shared(teamB)
+        for(int k = 0;k < teamB.size();k++) {
             Player* plyr = teamB[k];
             filledCircleRGBA(renderer, //render 
                         plyr->GetX(),plyr->GetY(),plyr->GetR(), // circulo
                         13, 141, 254, 255); // r,g,b,alpha
         }
-        #pragma omp for 
-        for(int l = 0;l <= bullets.size()-1;l++) {
+        #pragma omp for private(l) shared(bullets)
+        for(int l = 0;l < bullets.size();l++) {
             Bullet* bullet = bullets[l];
             if(bullet->GetGroupId() == 1) {
                 filledCircleRGBA(renderer, //render 
@@ -287,7 +287,7 @@ void Render() {
         {
             SDL_RenderPresent(renderer);
         }
-    //}
+    }
 };
 
 void Input() {
@@ -302,11 +302,11 @@ void Input() {
 };
 
 void Update() {
-    #pragma omp parallel shared(obj_stars,teamA,teamB,bullets)
+    #pragma omp parallel
     {
         // Movimiento de estrellas
-        #pragma omp for 
-        for(int i =0;i <= obj_stars.size()-1;i++) {
+        #pragma omp for private(i) shared(obj_stars)
+        for(int i =0;i < obj_stars.size();i++) {
             Star* star = obj_stars[i];
             star->UpdateVel();
             // Cuando el ciculo toca un borde se desaparece y aparece una nueva estrella
@@ -315,8 +315,8 @@ void Update() {
             }
         }
         // Equipo A
-        #pragma omp for 
-        for(int j = 0;j <= teamA.size()-1;j++) {
+        #pragma omp for private(j) shared(teamA)
+        for(int j = 0;j < teamA.size();j++) {
             Player* plyr = teamA[j];
             if(plyr->IsDead()) {
                 plyr->RestartPlayer();
@@ -325,8 +325,8 @@ void Update() {
             plyr->Shoot();
         }
         // Equipo B
-        #pragma omp for 
-        for(int k =0;k <= teamB.size()-1;k++) {
+        #pragma omp for private(k) shared(teamB)
+        for(int k =0;k < teamB.size();k++) {
             Player* plyr = teamB[k];
             if(plyr->IsDead()) {
                 plyr->RestartPlayer();
@@ -335,9 +335,8 @@ void Update() {
             plyr->Shoot();
         }
         // Balas
-        volatile bool flag=false;
-        #pragma omp for 
-        for(int i = 0;i <= bullets.size()-1;i++) {
+        #pragma omp for private(i) shared(bullets,teamB,teamA)
+        for(int i = 0;i < bullets.size();i++) {
             Bullet* bullet = bullets.at(i);
             Player* bplyr = nullptr;
             bool cond = false;
@@ -367,9 +366,8 @@ void Update() {
                         bplyr->AddBullet();
                         bullets.erase(bullets.begin()+i);
                         delete bullet;
-                        flag=true;
+                        break;
                     }
-                    if(flag) continue;
                 }
             } else {
                 for(Player* plyr : teamB) {
@@ -396,9 +394,8 @@ void Update() {
                         bplyr->AddBullet();
                         bullets.erase(bullets.begin()+i);
                         delete bullet;
-                        flag=true;
+                        break;
                     }
-                    if(flag) continue;
                 }
             }
         }
@@ -475,22 +472,18 @@ int main(int argc, char *argv[]) {
     Init();
     // Loop principal
     while (!quit) {
-        #pragma omp for
-        for (int i = 0; i < numplayers; i++) {
-            last_frm = SDL_GetTicks();
-            if(last_frm >= (lst_time+1000)) {
-                #pragma omp critical
-                {
-                    lst_time = last_frm;
-                    fps = frm_cnt;
-                    frm_cnt = 0;
-                    printf("FPS: %d\n",fps);
-                }
-            }
-            Input();
-            Update();
-            Render();
+        last_frm = SDL_GetTicks();
+        if(last_frm >= (lst_time+1000)) {
+            lst_time = last_frm;
+            fps = frm_cnt;
+            frm_cnt = 0;
+            printf("FPS: %d\n",fps);
         }
+        Input();
+        #pragma omp parallel num_threads(num_thds)
+        Update();
+        #pragma omp_parallel num_threads(num_thds)
+        Render();
     }
     // limpia la app para cerrarla
     CleanEnvironment();
